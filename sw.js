@@ -1,5 +1,5 @@
 const CACHE = 'dose-day-v1';
-const CORE = ['/', '/index.html', '/main.js', '/styles.css', '/manifest.webmanifest', '/icon.svg'];
+const CORE = ['./', './index.html', './main.js', './styles.css', './manifest.webmanifest', './icon.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE))));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', event => {
