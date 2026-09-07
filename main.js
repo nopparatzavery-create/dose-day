@@ -10,6 +10,7 @@ let activeDate = new Date();
 let timer;
 let slideIndex = 0;
 let sliderTimer;
+let appointments = JSON.parse(localStorage.getItem('dose-day-appointments') || '[]');
 const pillOptions = ['round-rose','round-cream','round-lilac','capsule-amber','capsule-sage','capsule-coral'];
 const drugSlides = [
   { name: 'Amlodipine', tag: 'ยาความดัน', icon: 'round-rose', text: 'ใช้รักษาความดันโลหิตสูง และอาจใช้กับอาการเจ็บหน้าอกจากหัวใจขาดเลือด', url: 'https://medlineplus.gov/druginfo/meds/a692044.html' },
@@ -24,7 +25,7 @@ const pillClass = icon => pillOptions.includes(icon) ? icon : ({ '💊':'capsule
 
 function infoSliderHtml() {
   const slide = drugSlides[slideIndex];
-  return `<section class="medicine-notes" aria-label="เกร็ดความรู้เรื่องยา"><div class="notes-title"><div><p class="eyebrow">ยาใกล้ตัว</p><h2>รู้จักยาของคุณ</h2></div><span>เลื่อนอัตโนมัติ</span></div><article class="medicine-slide"><div class="large-pill ${slide.icon}" aria-hidden="true"><span></span></div><div><p class="slide-tag">${slide.tag}</p><h3>${slide.name}</h3><p>${slide.text}</p><a href="${slide.url}" target="_blank" rel="noopener">อ่านข้อมูลเพิ่มเติม ↗</a></div></article><div class="slide-dots">${drugSlides.map((_, index) => `<button type="button" aria-label="ดูสไลด์ ${index + 1}" class="${index === slideIndex ? 'active' : ''}" data-slide="${index}"></button>`).join('')}</div><p class="medical-note">ข้อมูลเพื่อการเรียนรู้ ไม่ใช้แทนคำแนะนำจากแพทย์หรือเภสัชกร</p></section>`;
+  return `<section class="medicine-notes" aria-label="เกร็ดความรู้เรื่องยา"><div class="notes-title"><div><p class="eyebrow">Tip ควรรู้</p><h2>ดูแลการใช้ยาอย่างมั่นใจ</h2></div><span>เลื่อนอัตโนมัติ</span></div><article class="medicine-slide"><img class="pharmacist-photo" src="https://images.unsplash.com/photo-1580281657527-47f249e8f4df?auto=format&fit=crop&w=550&q=80" alt="เภสัชกรกำลังจัดยา" /><div><p class="slide-tag">${slide.tag}</p><h3>${slide.name}</h3><p>${slide.text}</p><a href="${slide.url}" target="_blank" rel="noopener">อ่านข้อมูลเพิ่มเติม ↗</a></div></article><div class="slide-controls"><button type="button" class="slide-arrow" data-slide-move="-1" aria-label="สไลด์ก่อนหน้า">‹</button><div class="slide-dots">${drugSlides.map((_, index) => `<button type="button" aria-label="ดูสไลด์ ${index + 1}" class="${index === slideIndex ? 'active' : ''}" data-slide="${index}"></button>`).join('')}</div><button type="button" class="slide-arrow" data-slide-move="1" aria-label="สไลด์ถัดไป">›</button></div><p class="medical-note">ข้อมูลเพื่อการเรียนรู้ ไม่ใช้แทนคำแนะนำจากแพทย์หรือเภสัชกร</p></section>`;
 }
 
 function calendarHtml() {
@@ -36,9 +37,11 @@ function calendarHtml() {
     if (i < leading) return '<span class="calendar-day empty"></span>';
     const day = i - leading + 1; const date = new Date(year, month, day);
     const selected = dateKey(date) === dateKey(activeDate); const today = dateKey(date) === dateKey(new Date());
-    return `<button class="calendar-day ${selected ? 'selected' : ''} ${today ? 'today' : ''}" data-calendar-day="${dateKey(date)}">${day}</button>`;
+    const hasAppointment = appointments.some(item => item.date === dateKey(date));
+    return `<button class="calendar-day ${selected ? 'selected' : ''} ${today ? 'today' : ''} ${hasAppointment ? 'has-appointment' : ''}" data-calendar-day="${dateKey(date)}">${day}</button>`;
   }).join('');
-  return `<section class="calendar"><div class="calendar-head"><button id="prevMonth" aria-label="เดือนก่อนหน้า">‹</button><h2>${esc(monthName)}</h2><button id="nextMonth" aria-label="เดือนถัดไป">›</button></div><div class="weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div><div class="calendar-grid">${cells}</div></section>`;
+  const selectedAppointment = appointments.filter(item => item.date === dateKey(activeDate));
+  return `<section class="calendar"><div class="calendar-head"><button id="prevMonth" aria-label="เดือนก่อนหน้า">‹</button><h2>${esc(monthName)}</h2><button id="nextMonth" aria-label="เดือนถัดไป">›</button></div><div class="weekdays"><span>อา</span><span>จ</span><span>อ</span><span>พ</span><span>พฤ</span><span>ศ</span><span>ส</span></div><div class="calendar-grid">${cells}</div><div class="appointment-row"><div>${selectedAppointment.length ? selectedAppointment.map(item => `<span class="appointment-chip">${esc(item.title)}</span>`).join('') : '<span>ยังไม่มีนัดหมายในวันนี้</span>'}</div><button id="appointmentBtn" type="button">+ เพิ่มนัดหมาย</button></div></section>`;
 }
 
 function save() { localStorage.setItem('dose-day-meds', JSON.stringify(meds)); }
@@ -84,6 +87,7 @@ function render() {
     </main>
     <dialog id="medicineDialog"><form id="medicineForm"><div class="modal-top"><div><p class="eyebrow">เพิ่มรายการใหม่</p><h2>เพิ่มยาของคุณ</h2></div><button type="button" class="close" data-close="medicineDialog" aria-label="ปิด">×</button></div><label>ชื่อยา<input required name="name" placeholder="เช่น Amlodipine" /></label><label>ประเภทยา<input required name="type" placeholder="เช่น ยาแก้ปวด หรือ วิตามิน" /></label><fieldset class="icon-picker"><legend>เลือกรูปแบบเม็ดยา</legend><input type="hidden" name="icon" value="round-rose" /><div>${pillOptions.map((icon, index) => `<button type="button" class="icon-option ${icon} ${index === 0 ? 'selected' : ''}" data-icon="${icon}" aria-label="เลือกรูปแบบยา"><span></span></button>`).join('')}</div></fieldset><div class="form-grid"><label>เวลาที่ต้องกิน<input required type="time" name="time" value="08:00" /></label><label>ปริมาณ<input required name="dose" value="1 เม็ด" /></label></div><label class="as-needed"><input type="checkbox" name="needed" /> กินเมื่อมีอาการ</label><button class="save-button" type="submit">บันทึกรายการยา</button></form></dialog>
     <dialog id="loginDialog"><form method="dialog"><div class="modal-top"><div><p class="eyebrow">Dose Day</p><h2>เข้าสู่ระบบ</h2></div><button type="button" class="close" data-close="loginDialog" aria-label="ปิด">×</button></div><p class="login-copy">สำรองข้อมูลยาและใช้งานข้ามอุปกรณ์ได้</p><label>อีเมล<input type="email" placeholder="you@example.com" /></label><label>รหัสผ่าน<input type="password" placeholder="••••••••" /></label><button class="save-button" value="default">เข้าสู่ระบบ</button><p class="signup">ยังไม่มีบัญชี? <a href="#">สมัครใช้งาน</a></p></form></dialog>
+    <dialog id="appointmentDialog"><form id="appointmentForm"><div class="modal-top"><div><p class="eyebrow">ปฏิทินของคุณ</p><h2>เพิ่มนัดหมาย</h2></div><button type="button" class="close" data-close="appointmentDialog" aria-label="ปิด">×</button></div><label>เรื่องนัดหมาย<input required name="title" placeholder="เช่น นัดพบแพทย์" /></label><label>วันที่<input required type="date" name="date" value="${dateKey(activeDate)}" /></label><button class="save-button" type="submit">บันทึกนัดหมาย</button></form></dialog>
   `;
   bindEvents();
 }
@@ -97,6 +101,8 @@ function bindEvents() {
     button.classList.add('selected'); document.querySelector('[name="icon"]').value = button.dataset.icon;
   });
   document.querySelectorAll('[data-slide]').forEach(button => button.onclick = () => { slideIndex = Number(button.dataset.slide); render(); });
+  document.querySelectorAll('[data-slide-move]').forEach(button => button.onclick = () => { slideIndex = (slideIndex + Number(button.dataset.slideMove) + drugSlides.length) % drugSlides.length; render(); });
+  document.querySelector('#appointmentBtn').onclick = () => document.querySelector('#appointmentDialog').showModal();
   document.querySelector('#prevMonth').onclick = () => { activeDate.setMonth(activeDate.getMonth() - 1); render(); };
   document.querySelector('#nextMonth').onclick = () => { activeDate.setMonth(activeDate.getMonth() + 1); render(); };
   document.querySelectorAll('[data-calendar-day]').forEach(button => button.onclick = () => { activeDate = new Date(`${button.dataset.calendarDay}T12:00:00`); render(); });
@@ -107,6 +113,7 @@ function bindEvents() {
     meds.push({ id: Date.now(), name: data.get('name'), type: data.get('type'), time: data.get('needed') ? 'เมื่อมีอาการ' : data.get('time'), dose: data.get('dose'), icon: data.get('icon') });
     save(); render();
   };
+  document.querySelector('#appointmentForm').onsubmit = event => { event.preventDefault(); const data = new FormData(event.currentTarget); appointments.push({ id: Date.now(), title: data.get('title'), date: data.get('date') }); localStorage.setItem('dose-day-appointments', JSON.stringify(appointments)); activeDate = new Date(`${data.get('date')}T12:00:00`); render(); };
   document.querySelector('#notifyBtn').onclick = enableNotifications;
   clearInterval(sliderTimer);
   sliderTimer = setInterval(() => { slideIndex = (slideIndex + 1) % drugSlides.length; render(); }, 8000);
